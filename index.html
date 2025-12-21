@@ -105,6 +105,22 @@
             color: white;
             padding: 2rem 0;
         }
+        
+        /* 新增：遊戲 iframe 的 RWD 設定，確保視窗夠大 */
+        .game-iframe-container {
+            position: relative;
+            width: 100%;
+            height: 850px; /* 加大高度 */
+            background: #000;
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 4px solid #333;
+        }
+        .game-iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
     </style>
 </head>
 <body data-bs-spy="scroll" data-bs-target="#mainNav" data-bs-offset="100">
@@ -121,7 +137,11 @@
                 <ul class="navbar-nav ms-auto my-2 my-lg-0">
                     <li class="nav-item"><a class="nav-link" href="#home">首頁</a></li>
                     <li class="nav-item"><a class="nav-link" href="#about">關於我</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#skills">學習與技能</a> <li class="nav-item"><a class="nav-link" href="#portfolio">媒體作品集</a> <li class="nav-item"><a class="nav-link" href="#extra">附加資訊</a> <li class="nav-item"><a class="nav-link" href="#contact">聯絡我</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#skills">學習與技能</a> 
+                    <li class="nav-item"><a class="nav-link" href="#portfolio">媒體作品集</a> 
+                    <li class="nav-item"><a class="nav-link" href="#game-section">互動遊戲</a> 
+                    <li class="nav-item"><a class="nav-link" href="#extra">附加資訊</a> 
+                    <li class="nav-item"><a class="nav-link" href="#contact">聯絡我</a></li>
                 </ul>
             </nav>
         </div>
@@ -261,6 +281,13 @@
                 </article>
 
                 <article class="mb-5">
+                    <h3 class="h4 fw-bold mb-3 text-primary"><i class="bi bi-youtube me-2"></i>YouTube 影片</h3>
+                    <div class="ratio ratio-16x9 shadow-lg rounded overflow-hidden">
+                        <iframe src="https://www.youtube.com/embed/bMueAKUCWw4" title="YouTube video player" allowfullscreen></iframe>
+                    </div>
+                </article>
+
+                <article class="mb-5">
                     <h3 class="h4 fw-bold mb-3 text-primary"><i class="bi bi-camera-video-fill me-2"></i>視訊作品</h3>
                     <p>這是我使用Gemini生成出的影片作品</p>
                     <div class="row g-3">
@@ -297,6 +324,25 @@
                         </figure>
                     </div>
                 </article>
+            </div>
+        </section>
+
+        <section id="game-section" class="bg-dark text-white">
+            <div class="container">
+                <div class="text-center">
+                    <h2 class="section-title text-white">互動遊戲實驗室</h2>
+                    <p class="text-muted mb-4">元素防禦戰 v3.2</p>
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-12">
+                        <div class="game-iframe-container">
+                            <iframe src="game.html" title="Elemental Defense Game"></iframe>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="game.html" target="_blank" class="btn btn-outline-light">全螢幕遊玩</a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -365,10 +411,10 @@
                         
                         <div class="text-center mt-4">
                             <p class="text-muted mb-1">
-                                <i class="bi bi-envelope-fill me-2"></i>contact@personalblog.com
+                                <i class="bi bi-envelope-fill me-2"></i>contact@personalblog.com (來自原檔案)
                             </p>
                             <p class="text-muted">
-                                <i class="bi bi-telephone-fill me-2"></i>0912-345-678
+                                <i class="bi bi-telephone-fill me-2"></i>0912-345-678 (來自原檔案)
                             </p>
                         </div>
                     </div>
@@ -385,9 +431,9 @@
                 <a href="#" class="text-white mx-2 fs-4" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
             </div>
             <p class="mb-0 small">
-                <time datetime="2024-11-30">最後更新日期：2024年12月14日</time>
+                <time datetime="2024-11-30">最後更新日期：2024年11月30日</time> (來自原檔案)
             </p>
-            <p class="mb-0 small">&copy; 2025 杜宇宸 Portfolio. All Rights Reserved.</p>
+            <p class="mb-0 small">© 2024 杜宇宸 Portfolio. All Rights Reserved.</p>
         </div>
     </footer>
 
@@ -424,5 +470,4 @@
         })();
     </script>
 </body>
-
 </html>

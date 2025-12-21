@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>元素防禦戰 v3.2 - 完美修復版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #111827;
+            color: #e2e8f0;
+            overflow-y: auto; 
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        #game-wrapper {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 1rem;
+        }
+
+        canvas {
+            background-color: #1f2937;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            border-radius: 0.5rem;
+            cursor: crosshair;
+            width: 100%;
+            height: auto;
+            max-width: 800px;
+        }
+
+        .btn-press { transition: transform 0.1s; }
+        .btn-press:active { transform: scale(0.95); }
+
+        .tower-btn.active {
+            border-color: #48bb78;
+            background-color: #2f855a;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(72, 187, 120, 0.6);
+        }
+
+        .tech-card {
+            background: linear-gradient(145deg, #1f2937, #111827);
+            border: 1px solid #374151;
+            transition: all 0.2s;
+        }
+        .tech-card:hover { border-color: #60a5fa; transform: translateY(-2px); }
+        
+        .screen { display: none; }
+        .screen.active { display: flex; }
+    </style>
+</head>
+<body>
+
+    <!-- 左上角個人資訊 -->
+    <div class="fixed top-4 left-4 text-white font-bold z-50 pointer-events-none select-none text-lg" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8); line-height: 1.5;">
+        111316031<br>
+        杜宇宸
+    </div>
+
+    <div id="game-wrapper">
+        
+        <!-- ==================== 主選單 ==================== -->
+        <div id="menu-screen" class="screen active flex-col items-center w-full max-w-4xl animate-fade-in">
+            <h1 class="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 mb-2 mt-8 text-center">
+                元素防禦戰 v3.2
+            </h1>
+            <p class="text-gray-400 mb-8 text-center">科技升級進度已儲存</p>
+
+            <div class="bg-gray-800 px-6 py-3 rounded-full border border-blue-500/50 shadow-lg shadow-blue-500/20 mb-8 flex items-center space-x-3">
+                <span class="text-2xl">🧪</span>
+                <span class="text-xl font-bold text-blue-300">科技點數 (TP): <span id="menu-tp" class="text-white text-2xl">0</span></span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full mb-10 px-4">
+                <div class="tech-card p-4 rounded-xl flex flex-col items-center text-center">
+                    <div class="text-3xl mb-2">💰</div>
+                    <h3 class="font-bold text-yellow-400 text-lg">戰爭基金</h3>
+                    <p class="text-xs text-gray-400 mb-3">增加初始攜帶的金錢</p>
+                    <div class="text-sm font-bold text-white mb-2">目前: +$<span id="tech-start-money-val">0</span></div>
+                    <button onclick="upgradeTech('startMoney')" class="btn-press px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded text-sm font-bold w-full disabled:opacity-50 disabled:cursor-not-allowed">
+                        升級 (<span id="tech-start-money-cost">100</span> TP)
+                    </button>
+                </div>
+                <div class="tech-card p-4 rounded-xl flex flex-col items-center text-center">
+                    <div class="text-3xl mb-2">⚔️</div>
+                    <h3 class="font-bold text-red-400 text-lg">核心超頻</h3>
+                    <p class="text-xs text-gray-400 mb-3">所有防禦塔傷害提升</p>
+                    <div class="text-sm font-bold text-white mb-2">目前: +<span id="tech-damage-val">0</span>%</div>
+                    <button onclick="upgradeTech('globalDamage')" class="btn-press px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded text-sm font-bold w-full disabled:opacity-50 disabled:cursor-not-allowed">
+                        升級 (<span id="tech-damage-cost">150</span> TP)
+                    </button>
+                </div>
+                <div class="tech-card p-4 rounded-xl flex flex-col items-center text-center">
+                    <div class="text-3xl mb-2">💎</div>
+                    <h3 class="font-bold text-green-400 text-lg">賞金獵人</h3>
+                    <p class="text-xs text-gray-400 mb-3">擊殺敵人獲得更多金錢</p>
+                    <div class="text-sm font-bold text-white mb-2">目前: +<span id="tech-bounty-val">0</span>%</div>
+                    <button onclick="upgradeTech('bounty')" class="btn-press px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded text-sm font-bold w-full disabled:opacity-50 disabled:cursor-not-allowed">
+                        升級 (<span id="tech-bounty-cost">200</span> TP)
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="goToGame()" class="btn-press w-full max-w-md py-4 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl text-2xl font-black shadow-lg shadow-green-500/30 hover:scale-105 transition transform border-2 border-green-400">
+                開始任務
+            </button>
+            <button onclick="clearSave()" class="mt-4 text-xs text-gray-600 hover:text-red-500 underline">
+                重置所有進度
+            </button>
+        </div>
+
+        <!-- ==================== 遊戲畫面 ==================== -->
+        <div id="game-screen" class="screen w-full flex-col items-center hidden">
+            
+            <div class="w-full max-w-4xl flex justify-between items-center bg-gray-800 p-3 rounded-t-lg border-b border-gray-700">
+                <button onclick="returnToMenu()" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-xs">⬅ 選單</button>
+                <div class="flex space-x-4 md:space-x-8">
+                    <div class="flex items-center text-red-400 font-bold"><span class="mr-1">❤️</span><span id="lives-display">20</span></div>
+                    <div class="flex items-center text-yellow-400 font-bold"><span class="mr-1">💰</span><span id="money-display">0</span></div>
+                    <div class="flex items-center text-blue-400 font-bold"><span class="mr-1">🌊</span><span id="wave-display">1</span></div>
+                </div>
+            </div>
+
+            <div class="relative w-full max-w-4xl">
+                <canvas id="gameCanvas" width="800" height="600"></canvas>
+                
+                <div id="game-msg" class="absolute top-10 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-6 py-2 rounded-full font-bold text-lg opacity-0 transition-opacity duration-500 pointer-events-none border border-white/20">
+                    訊息
+                </div>
+
+                <div id="game-over-modal" class="hidden absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-50">
+                    <h2 class="text-5xl font-black text-red-500 mb-2">任務失敗</h2>
+                    <p class="text-xl text-gray-300 mb-6">防線已被突破</p>
+                    <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-8 text-center min-w-[300px]">
+                        <div class="text-gray-400 text-sm mb-1">抵達波數</div>
+                        <div class="text-4xl font-bold text-white mb-4" id="final-wave-count">0</div>
+                        <div class="w-full h-px bg-gray-700 my-4"></div>
+                        <div class="text-blue-400 text-sm mb-1">獲得科技點數</div>
+                        <div class="text-3xl font-bold text-blue-300">+<span id="earned-tp">0</span> TP</div>
+                    </div>
+                    <button onclick="returnToMenu()" class="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow-lg">
+                        返回基地
+                    </button>
+                </div>
+            </div>
+
+            <div class="w-full max-w-4xl bg-gray-800 p-2 md:p-4 rounded-b-lg border-t border-gray-700">
+                <div id="build-controls" class="flex flex-wrap justify-between items-center gap-2">
+                    <div class="flex space-x-2 overflow-x-auto pb-1 no-scrollbar">
+                        <button onclick="selectTower('basic')" id="btn-basic" class="tower-btn w-16 h-20 md:w-20 md:h-24 bg-gray-700 rounded border-2 border-gray-600 flex flex-col items-center justify-center relative">
+                            <div class="w-6 h-6 rounded-full bg-yellow-500 mb-1"></div>
+                            <span class="text-xs font-bold">基礎</span>
+                            <span class="text-xs text-yellow-300 font-bold">$<span class="cost">50</span></span>
+                        </button>
+                        <button onclick="selectTower('sniper')" id="btn-sniper" class="tower-btn w-16 h-20 md:w-20 md:h-24 bg-gray-700 rounded border-2 border-gray-600 flex flex-col items-center justify-center relative">
+                            <div class="w-6 h-6 bg-red-600 rotate-45 mb-1"></div>
+                            <span class="text-xs font-bold">狙擊</span>
+                            <span class="text-xs text-yellow-300 font-bold">$<span class="cost">120</span></span>
+                        </button>
+                        <button onclick="selectTower('rapid')" id="btn-rapid" class="tower-btn w-16 h-20 md:w-20 md:h-24 bg-gray-700 rounded border-2 border-gray-600 flex flex-col items-center justify-center relative">
+                            <div class="w-6 h-6 rounded-full bg-blue-500 border-dashed border-2 border-white mb-1"></div>
+                            <span class="text-xs font-bold">速射</span>
+                            <span class="text-xs text-yellow-300 font-bold">$<span class="cost">200</span></span>
+                        </button>
+                        <button onclick="selectTower('ice')" id="btn-ice" class="tower-btn w-16 h-20 md:w-20 md:h-24 bg-gray-700 rounded border-2 border-gray-600 flex flex-col items-center justify-center relative">
+                            <div class="w-6 h-6 bg-cyan-400 rotate-12 mb-1 shadow-[0_0_10px_#22d3ee]"></div>
+                            <span class="text-xs font-bold text-cyan-200">寒冰</span>
+                            <span class="text-xs text-yellow-300 font-bold">$<span class="cost">150</span></span>
+                        </button>
+                    </div>
+                    <button id="next-wave-btn" class="ml-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                        <span class="mr-2">⚔️</span> 下一波
+                    </button>
+                </div>
+
+                <!-- 修復後的升級面板 -->
+                <div id="upgrade-controls" class="hidden flex justify-between items-center bg-gray-900 p-2 rounded border border-teal-500/50">
+                    <div class="text-sm">
+                        <div class="font-bold text-teal-300" id="selected-tower-name">塔名稱</div>
+                        <div class="text-xs text-gray-400">Lv.<span id="selected-tower-lvl">1</span></div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="sellTower()" class="px-3 py-1 bg-red-900 text-red-200 text-xs font-bold rounded border border-red-700">
+                            賣出 $<span id="sell-val">0</span>
+                        </button>
+                        <!-- 移除內部的 span，改用 JS 直接控制按鈕文字 -->
+                        <button id="btn-do-upgrade" onclick="upgradeTower()" class="px-4 py-1 bg-teal-700 text-white text-xs font-bold rounded border border-teal-500 disabled:opacity-50 min-w-[100px]">
+                            升級
+                        </button>
+                        <button onclick="deselectTower()" class="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded">X</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 存檔與常數 ---
+        const DEFAULT_SAVE = { tp: 0, upgrades: { startMoney: 0, globalDamage: 0, bounty: 0 } };
+        const UPGRADE_CONFIG = {
+            startMoney: { base: 100, scale: 1.5, effect: 50 },
+            globalDamage: { base: 150, scale: 1.6, effect: 0.1 },
+            bounty: { base: 200, scale: 1.8, effect: 0.15 }
+        };
+
+        let saveData = JSON.parse(localStorage.getItem('elementalTD_v3')) || JSON.parse(JSON.stringify(DEFAULT_SAVE));
+
+        function saveGame() { localStorage.setItem('elementalTD_v3', JSON.stringify(saveData)); updateMenuUI(); }
+        function clearSave() { if(confirm('確定重置？')) { localStorage.removeItem('elementalTD_v3'); location.reload(); } }
+        function upgradeTech(type) {
+            const cfg = UPGRADE_CONFIG[type];
+            const cost = Math.floor(cfg.base * Math.pow(cfg.scale, saveData.upgrades[type]));
+            if (saveData.tp >= cost) { saveData.tp -= cost; saveData.upgrades[type]++; saveGame(); }
+        }
+
+        function updateMenuUI() {
+            document.getElementById('menu-tp').innerText = saveData.tp;
+            ['startMoney','globalDamage','bounty'].forEach(t => {
+                const cfg = UPGRADE_CONFIG[t], lvl = saveData.upgrades[t];
+                const cost = Math.floor(cfg.base * Math.pow(cfg.scale, lvl));
+                let val = lvl * cfg.effect;
+                if(t !== 'startMoney') val = Math.round(val*100);
+                document.getElementById(`tech-${t.replace('globalDamage','damage').replace('startMoney','start-money')}-val`).innerText = val;
+                document.getElementById(`tech-${t.replace('globalDamage','damage').replace('startMoney','start-money')}-cost`).innerText = cost;
+                document.querySelector(`button[onclick="upgradeTech('${t}')"]`).disabled = saveData.tp < cost;
+            });
+        }
+
+        const CANVAS_WIDTH = 800, CANVAS_HEIGHT = 600, GRID_SIZE = 40;
+        const WAYPOINTS = [{x:0,y:300},{x:160,y:300},{x:160,y:100},{x:400,y:100},{x:400,y:500},{x:640,y:500},{x:640,y:300},{x:800,y:300}];
+        const TOWER_TYPES = {
+            basic: { name: '基礎塔', cost: 50, range: 120, damage: 25, fireRate: 45, color: '#ECC94B', speed: 8 },
+            sniper: { name: '狙擊塔', cost: 120, range: 280, damage: 100, fireRate: 130, color: '#E53E3E', speed: 20 },
+            rapid: { name: '速射塔', cost: 200, range: 90, damage: 10, fireRate: 8, color: '#4299E1', speed: 12 },
+            ice: { name: '寒冰塔', cost: 150, range: 110, damage: 5, fireRate: 50, color: '#22D3EE', speed: 10, slowDur: 60 }
+        };
+        const ENEMY_TYPES = {
+            normal: { color: '#9F7AEA', hpMult: 1, spdMult: 1, bountyMult: 1, radius: 12 },
+            scout: { color: '#F6E05E', hpMult: 0.6, spdMult: 1.8, bountyMult: 1.2, radius: 10 },
+            tank: { color: '#2F855A', hpMult: 3.5, spdMult: 0.6, bountyMult: 2.0, radius: 16 },
+            boss: { color: '#805AD5', hpMult: 15.0, spdMult: 0.4, bountyMult: 10.0, radius: 22 }
+        };
+
+        let canvas, ctx, animationId;
+        let gameState = { running: false, money: 0, lives: 20, wave: 1, activeWave: false, enemiesQueue: [], spawnTimer: 0, selectedTowerType: null, selectedInstance: null };
+        let entities = { towers: [], enemies: [], projectiles: [], particles: [] };
+        let mousePos = {x:0, y:0};
+
+        window.onload = () => {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            canvas.addEventListener('mousedown', handleInput);
+            canvas.addEventListener('mousemove', handleHover);
+            canvas.addEventListener('touchstart', (e)=>{e.preventDefault(); handleInput(e.touches[0]);}, {passive:false});
+            document.getElementById('next-wave-btn').addEventListener('click', startWave);
+            updateMenuUI();
+        };
+
+        function goToGame() {
+            document.getElementById('menu-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            initGame();
+        }
+        function returnToMenu() {
+            gameState.running = false;
+            document.getElementById('game-screen').classList.remove('active');
+            document.getElementById('menu-screen').classList.add('active');
+            updateMenuUI();
+        }
+
+        function initGame() {
+            const startMoneyBonus = saveData.upgrades.startMoney * UPGRADE_CONFIG.startMoney.effect;
+            gameState = { running: true, money: 350+startMoneyBonus, lives: 20, wave: 1, activeWave: false, enemiesQueue: [], spawnTimer: 0, selectedTowerType: null, selectedInstance: null };
+            entities = { towers: [], enemies: [], projectiles: [], particles: [] };
+            document.getElementById('game-over-modal').classList.add('hidden');
+            deselectTower();
+            updateGameUI();
+            if(animationId) cancelAnimationFrame(animationId);
+            gameLoop();
+        }
+
+        function startWave() {
+            if(gameState.activeWave) return;
+            gameState.activeWave = true;
+            document.getElementById('next-wave-btn').disabled = true;
+            document.getElementById('next-wave-btn').classList.add('opacity-50');
+            let count = 5 + Math.floor(gameState.wave * 1.5);
+            gameState.enemiesQueue = [];
+            for(let i=0; i<count; i++) {
+                let type = 'normal';
+                if(gameState.wave%10===0 && i===count-1) type='boss';
+                else if(gameState.wave>=5 && Math.random()<0.2) type='tank';
+                else if(gameState.wave>=3 && Math.random()<0.3) type='scout';
+                gameState.enemiesQueue.push(type);
+            }
+            deselectTower();
+        }
+
+        function gameLoop() {
+            if(!gameState.running) return;
+            update();
+            draw();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            if(gameState.activeWave) {
+                if(gameState.enemiesQueue.length>0) {
+                    gameState.spawnTimer++;
+                    let interval = 40;
+                    if(gameState.enemiesQueue[0]==='scout') interval=25;
+                    else if(gameState.enemiesQueue[0]==='tank') interval=60;
+                    else if(gameState.enemiesQueue[0]==='boss') interval=120;
+                    interval = Math.max(15, interval-gameState.wave);
+                    if(gameState.spawnTimer >= interval) {
+                        spawnEnemy(gameState.enemiesQueue.shift());
+                        gameState.spawnTimer = 0;
+                    }
+                } else if(entities.enemies.length===0) endWave();
+            }
+
+            entities.enemies.forEach((e,i) => {
+                e.update();
+                if(e.finished) {
+                    gameState.lives--; entities.enemies.splice(i,1);
+                    if(gameState.lives<=0) triggerGameOver();
+                } else if(e.health<=0) {
+                    const bonus = 1 + (saveData.upgrades.bounty * UPGRADE_CONFIG.bounty.effect);
+                    gameState.money += Math.floor(e.bounty * bonus);
+                    createParticles(e.x,e.y,e.color);
+                    entities.enemies.splice(i,1);
+                }
+            });
+
+            entities.towers.forEach(t => t.update());
+            entities.projectiles.forEach((p,i) => {
+                p.update();
+                if(p.remove) entities.projectiles.splice(i,1);
+            });
+            entities.particles.forEach((p,i) => {
+                p.update();
+                if(p.life<=0) entities.particles.splice(i,1);
+            });
+            updateGameUI();
+        }
+
+        function endWave() {
+            gameState.activeWave = false;
+            const b = 100 + (gameState.wave*10);
+            gameState.money += b;
+            showGameMsg(`波數完成！ +$${b}`);
+            gameState.wave++;
+            const btn = document.getElementById('next-wave-btn');
+            btn.disabled=false; btn.classList.remove('opacity-50');
+        }
+
+        function triggerGameOver() {
+            gameState.running = false;
+            document.getElementById('final-wave-count').innerText = gameState.wave;
+            const tp = gameState.wave * 5;
+            document.getElementById('earned-tp').innerText = tp;
+            saveData.tp += tp; saveGame();
+            document.getElementById('game-over-modal').classList.remove('hidden');
+        }
+
+        class Enemy {
+            constructor(type) {
+                this.type = type;
+                const tmpl = ENEMY_TYPES[type];
+                this.wpIndex = 0; this.x = WAYPOINTS[0].x; this.y = WAYPOINTS[0].y;
+                const wave = gameState.wave;
+                const hp = 25 + (wave*wave*8);
+                this.maxHealth = hp * tmpl.hpMult;
+                this.health = this.maxHealth;
+                this.speedBase = (1.5 + (wave*0.05)) * tmpl.spdMult;
+                this.bounty = Math.floor((10+wave)*tmpl.bountyMult);
+                this.color = tmpl.color; this.radius = tmpl.radius;
+                this.slowTimer = 0; this.finished = false;
+            }
+            update() {
+                let spd = this.speedBase;
+                if(this.slowTimer>0) { spd*=0.5; this.slowTimer--; }
+                const t = WAYPOINTS[this.wpIndex+1];
+                if(!t) { this.finished = true; return; }
+                const dx = t.x - this.x, dy = t.y - this.y;
+                const d = Math.hypot(dx,dy);
+                if(d < spd) { this.x = t.x; this.y = t.y; this.wpIndex++; }
+                else { this.x += (dx/d)*spd; this.y += (dy/d)*spd; }
+            }
+            draw(ctx) {
+                ctx.beginPath(); ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
+                ctx.fillStyle = this.color; ctx.fill();
+                ctx.strokeStyle = this.slowTimer>0 ? '#22D3EE' : (this.type==='boss'?'#F6E05E':'#fff');
+                ctx.lineWidth = this.type==='boss'?2:1; ctx.stroke();
+                const pct = this.health/this.maxHealth;
+                ctx.fillStyle='#C53030'; ctx.fillRect(this.x-12,this.y-this.radius-8,24,4);
+                ctx.fillStyle='#48BB78'; ctx.fillRect(this.x-12,this.y-this.radius-8,24*pct,4);
+            }
+        }
+
+        class Tower {
+            constructor(x,y,type) {
+                this.x=x; this.y=y; this.type=type; this.level=1;
+                const t = TOWER_TYPES[type];
+                const mul = 1 + (saveData.upgrades.globalDamage * UPGRADE_CONFIG.globalDamage.effect);
+                this.damage = Math.floor(t.damage * mul);
+                this.range = t.range; this.fireRate = t.fireRate;
+                this.cooldown = 0; this.angle = 0; this.totalCost = t.cost;
+            }
+            upgrade() {
+                if(this.level>=5) return;
+                this.level++;
+                this.damage = Math.floor(this.damage*1.35);
+                this.range = Math.floor(this.range*1.1);
+                if(this.fireRate>10) this.fireRate*=0.9;
+                createParticles(this.x,this.y,'#4FD1C5');
+            }
+            update() {
+                if(this.cooldown>0) this.cooldown--;
+                let tgt=null, minD=Infinity;
+                entities.enemies.forEach(e=>{
+                    const d=Math.hypot(e.x-this.x,e.y-this.y);
+                    if(d<=this.range && d<minD){ minD=d; tgt=e; }
+                });
+                if(tgt) {
+                    this.angle = Math.atan2(tgt.y-this.y, tgt.x-this.x);
+                    if(this.cooldown<=0) {
+                        const info = TOWER_TYPES[this.type];
+                        entities.projectiles.push({
+                            x:this.x, y:this.y, target:tgt, damage:this.damage, speed:info.speed, color:info.color, isIce:this.type==='ice', slowDur:info.slowDur||0, remove:false,
+                            update: function() {
+                                if(!this.target || this.target.health<=0) { this.remove=true; return; }
+                                const dx=this.target.x-this.x, dy=this.target.y-this.y, d=Math.hypot(dx,dy);
+                                if(d<this.speed) {
+                                    this.target.health -= this.damage;
+                                    if(this.isIce) this.target.slowTimer = this.slowDur;
+                                    this.remove=true;
+                                } else { this.x+=(dx/d)*this.speed; this.y+=(dy/d)*this.speed; }
+                            },
+                            draw: function(c) { c.fillStyle=this.color; c.beginPath(); c.arc(this.x,this.y,4,0,Math.PI*2); c.fill(); }
+                        });
+                        this.cooldown = this.fireRate;
+                    }
+                }
+            }
+            draw(ctx) {
+                ctx.save(); ctx.translate(this.x,this.y);
+                if(this.level>1) {
+                    ctx.beginPath(); ctx.arc(0,0,14+this.level,0,Math.PI*2);
+                    ctx.strokeStyle=`rgba(255,255,255,${0.15*this.level})`; ctx.stroke();
+                }
+                ctx.fillStyle='#374151'; ctx.fillRect(-14,-14,28,28);
+                ctx.rotate(this.angle);
+                ctx.fillStyle=TOWER_TYPES[this.type].color;
+                
+                // 繪製塔身
+                if(this.type==='basic'){ ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.rect(0,-5,18,10); ctx.fill(); }
+                else if(this.type==='sniper'){ ctx.fillRect(-8,-8,16,16); ctx.fillRect(0,-3,26,6); }
+                else if(this.type==='rapid'){ ctx.beginPath(); ctx.arc(0,0,9,0,Math.PI*2); ctx.fillRect(0,-6,14,3); ctx.fillRect(0,3,14,3); ctx.fill(); }
+                else if(this.type==='ice'){ ctx.beginPath(); ctx.moveTo(15,0); ctx.lineTo(-8,8); ctx.lineTo(-8,-8); ctx.fill(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,0,4,0,Math.PI*2); ctx.fill(); }
+                
+                ctx.restore();
+
+                // 顯示等級
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
+                ctx.shadowColor = 'black'; ctx.shadowBlur = 2;
+                ctx.fillText(`Lv.${this.level}`, this.x, this.y + 24);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // --- 互動與繪圖 ---
+        function handleHover(e) {
+            const r=canvas.getBoundingClientRect();
+            mousePos.x=(e.clientX-r.left)*(canvas.width/r.width);
+            mousePos.y=(e.clientY-r.top)*(canvas.height/r.height);
+        }
+        function handleInput(e) {
+            if(!gameState.running) return;
+            const r=canvas.getBoundingClientRect();
+            const cx=(e.clientX-r.left)*(canvas.width/r.width);
+            const cy=(e.clientY-r.top)*(canvas.height/r.height);
+            const gx=Math.floor(cx/GRID_SIZE)*GRID_SIZE+GRID_SIZE/2;
+            const gy=Math.floor(cy/GRID_SIZE)*GRID_SIZE+GRID_SIZE/2;
+            
+            const t = entities.towers.find(t=>Math.abs(t.x-gx)<20 && Math.abs(t.y-gy)<20);
+            if(t) { selectInstance(t); return; }
+
+            if(gameState.selectedTowerType) {
+                const info=TOWER_TYPES[gameState.selectedTowerType];
+                if(canBuild(gx,gy,info.cost)) {
+                    entities.towers.push(new Tower(gx,gy,gameState.selectedTowerType));
+                    gameState.money-=info.cost;
+                    createParticles(gx,gy,'#fff');
+                    updateGameUI();
+                } else deselectTower();
+            } else deselectTower();
+        }
+
+        function canBuild(x,y,cost) {
+            if(gameState.money<cost) return false;
+            if(x<0||x>CANVAS_WIDTH||y<0||y>CANVAS_HEIGHT) return false;
+            if(entities.towers.some(t=>Math.abs(t.x-x)<GRID_SIZE && Math.abs(t.y-y)<GRID_SIZE)) return false;
+            for(let i=0;i<WAYPOINTS.length-1;i++) {
+                if(distToSegment(x,y,WAYPOINTS[i],WAYPOINTS[i+1])<25) return false;
+            }
+            return true;
+        }
+
+        window.selectTower = (type) => { deselectTower(); gameState.selectedTowerType=type; document.getElementById(`btn-${type}`).classList.add('active'); };
+        function selectInstance(t) { 
+            gameState.selectedTowerType=null; gameState.selectedInstance=t; 
+            document.querySelectorAll('.tower-btn').forEach(b=>b.classList.remove('active'));
+            document.getElementById('build-controls').classList.add('hidden');
+            document.getElementById('upgrade-controls').classList.remove('hidden'); document.getElementById('upgrade-controls').classList.add('flex');
+            updateUpgradeUI();
+        }
+        window.deselectTower = () => { 
+            gameState.selectedTowerType=null; gameState.selectedInstance=null; 
+            document.querySelectorAll('.tower-btn').forEach(b=>b.classList.remove('active'));
+            document.getElementById('build-controls').classList.remove('hidden');
+            document.getElementById('upgrade-controls').classList.add('hidden'); document.getElementById('upgrade-controls').classList.remove('flex');
+        };
+        
+        // --- 修正後的升級邏輯 ---
+        window.upgradeTower = () => { 
+            const t=gameState.selectedInstance; 
+            if(t) { 
+                const c=Math.floor(t.totalCost*0.7+(t.level*50)); 
+                if(gameState.money>=c && t.level<5){
+                    gameState.money-=c; 
+                    t.totalCost+=c; 
+                    t.upgrade(); 
+                    updateUpgradeUI();
+                } 
+            } 
+        };
+        
+        window.sellTower = () => { const t=gameState.selectedInstance; if(t) { gameState.money+=Math.floor(t.totalCost*0.6); entities.towers=entities.towers.filter(tw=>tw!==t); createParticles(t.x,t.y,'gold'); deselectTower(); } };
+
+        function updateGameUI() {
+            document.getElementById('money-display').innerText=gameState.money;
+            document.getElementById('lives-display').innerText=gameState.lives;
+            document.getElementById('wave-display').innerText=gameState.wave;
+            ['basic','sniper','rapid','ice'].forEach(t=>{
+                const btn=document.getElementById(`btn-${t}`);
+                if(gameState.money<TOWER_TYPES[t].cost){ btn.classList.add('opacity-50'); if(gameState.selectedTowerType===t) deselectTower(); }
+                else btn.classList.remove('opacity-50');
+            });
+            if(gameState.selectedInstance) updateUpgradeUI();
+        }
+
+        // --- 修正後的 UI 更新邏輯 ---
+        function updateUpgradeUI() {
+            const t = gameState.selectedInstance;
+            document.getElementById('selected-tower-name').innerText = TOWER_TYPES[t.type].name;
+            document.getElementById('selected-tower-lvl').innerText = t.level;
+            
+            const cost = Math.floor(t.totalCost * 0.7 + (t.level * 50));
+            // 移除了對 upgrade-cost 標籤的依賴，避免報錯
+            // 直接更新按鈕文字
+            const btn = document.getElementById('btn-do-upgrade');
+            if (t.level >= 5) {
+                btn.disabled = true;
+                btn.innerText = '已滿級';
+            } else {
+                btn.innerText = `升級 $${cost}`;
+                btn.disabled = gameState.money < cost;
+            }
+            
+            document.getElementById('sell-val').innerText = Math.floor(t.totalCost * 0.6);
+        }
+
+        function spawnEnemy(type) { entities.enemies.push(new Enemy(type)); }
+        function createParticles(x,y,c) { for(let i=0;i<6;i++) entities.particles.push({x,y,color:c,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4,life:1,update:function(){this.x+=this.vx;this.y+=this.vy;this.life-=0.05},draw:function(ctx){ctx.globalAlpha=Math.max(0,this.life);ctx.fillStyle=this.color;ctx.beginPath();ctx.arc(this.x,this.y,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}}); }
+        function showGameMsg(t) { const e=document.getElementById('game-msg'); e.innerText=t; e.classList.remove('opacity-0'); setTimeout(()=>e.classList.add('opacity-0'),2000); }
+        function distToSegment(pX,pY,p1,p2){ const A=pX-p1.x,B=pY-p1.y,C=p2.x-p1.x,D=p2.y-p1.y; const dot=A*C+B*D,len=C*C+D*D; let param=-1; if(len!==0)param=dot/len; let xx,yy; if(param<0){xx=p1.x;yy=p1.y;}else if(param>1){xx=p2.x;yy=p2.y;}else{xx=p1.x+param*C;yy=p1.y+param*D;} return Math.hypot(pX-xx,pY-yy); }
+
+        function draw() {
+            ctx.fillStyle='#1f2937'; ctx.fillRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+            ctx.lineCap='round'; ctx.lineJoin='round'; ctx.lineWidth=40; ctx.strokeStyle='#374151';
+            ctx.beginPath(); WAYPOINTS.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)); ctx.stroke();
+
+            entities.towers.forEach(t=>t.draw(ctx));
+            entities.enemies.forEach(e=>e.draw(ctx));
+            entities.projectiles.forEach(p=>p.draw(ctx));
+            entities.particles.forEach(p=>p.draw(ctx));
+
+            if(gameState.selectedTowerType) {
+                const info=TOWER_TYPES[gameState.selectedTowerType];
+                const gx=Math.floor(mousePos.x/GRID_SIZE)*GRID_SIZE+GRID_SIZE/2;
+                const gy=Math.floor(mousePos.y/GRID_SIZE)*GRID_SIZE+GRID_SIZE/2;
+                const ok=canBuild(gx,gy,info.cost);
+                ctx.beginPath(); ctx.arc(gx,gy,info.range,0,Math.PI*2);
+                ctx.fillStyle=ok?'rgba(255,255,255,0.2)':'rgba(255,0,0,0.2)'; ctx.fill();
+                ctx.strokeStyle=ok?'#fff':'#f00'; ctx.lineWidth=1; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+                ctx.save(); ctx.translate(gx,gy); ctx.globalAlpha=0.5; ctx.fillStyle=info.color; ctx.beginPath(); ctx.arc(0,0,12,0,Math.PI*2); ctx.fill(); ctx.restore();
+            }
+
+            if(gameState.selectedInstance) {
+                const t=gameState.selectedInstance;
+                ctx.beginPath(); ctx.arc(t.x,t.y,t.range,0,Math.PI*2);
+                ctx.strokeStyle='cyan'; ctx.lineWidth=1; ctx.setLineDash([5,5]); ctx.stroke(); ctx.setLineDash([]);
+            }
+        }
+    </script>
+</body>
+</html>
